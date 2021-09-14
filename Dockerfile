@@ -19,7 +19,7 @@ LABEL Description="daloRADIUS Official Docker based on Ubuntu 20.04 LTS and PHP7
 ENV DEBIAN_FRONTEND noninteractive
 
 # default timezone
-ENV TZ Europe/Vienna
+ENV TZ Asia/Shanghai
 
 # PHP install
 RUN apt-get update \
@@ -44,16 +44,20 @@ RUN apt-get update \
 		libmysqlclient-dev \
 		unzip \
 		wget \
+		expect \
+		git \
 	&& rm -rf /var/lib/apt/lists/*
 
+RUN mkdir /app
+# 添加必要的脚本
+ADD init.sh /app
+ADD install_pear.sh /app
 
 # PHP Pear DB library install
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
  && update-ca-certificates -f \
  && mkdir -p /tmp/pear/cache \
- && wget http://pear.php.net/go-pear.phar \
- && php go-pear.phar \
- && rm go-pear.phar \
+ && sh /app/install_pear.sh \
  && pear channel-update pear.php.net \
  && pear install -a -f DB \
  && pear install -a -f Mail \
@@ -66,17 +70,17 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 # /data should be mounted as volume to avoid recreation of database entries
 RUN mkdir /data /internal_data
 
-ADD . /var/www/html
+# 将项目源码拉取到web目录下
+RUN rm -rf /var/www/html \
+ && git clone git://github.com/lirantal/daloradius.git /var/www/html \
+ && cp /var/www/html/library/daloradius.conf.php.sample /var/www/html/library/daloradius.conf.php
 RUN chown -R www-data:www-data /var/www/html
 
 # Enable the .htaccess in /var/www/html
 RUN /bin/sed -i 's/AllowOverride\ None/AllowOverride\ All/g' /etc/apache2/apache2.conf
 
 # Make init.sh script executable
-RUN chmod +x /var/www/html/init.sh
-
-# Remove the original sample index.html file
-RUN rm -rf /var/www/html/index.html
+RUN chmod +x /app/init.sh
 
 # Create daloRADIUS Log file
 RUN touch /var/log/daloradius.log && chown -R www-data:www-data /var/log/daloradius.log
@@ -85,4 +89,4 @@ RUN touch /var/log/daloradius.log && chown -R www-data:www-data /var/log/dalorad
 EXPOSE 80
 
 # Run the script which executes Apache2 in the foreground as a running process
-CMD ["/var/www/html/init.sh"]
+CMD ["/app/init.sh"]

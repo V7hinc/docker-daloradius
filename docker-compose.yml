@@ -6,6 +6,8 @@ services:
     image: mariadb:10.3
     container_name: radius-mysql
     restart: unless-stopped
+    ports:
+      - '3306:3306'
     environment:
       - MYSQL_DATABASE=radius
       - MYSQL_USER=radius
@@ -34,7 +36,7 @@ services:
       # Optional settings
       - DEFAULT_CLIENT_SECRET=testing123
     volumes:
-      - ./data/freeradius:/data
+      - ./data/freeradius:/data/freeradius
     # If you want to disable debug output, remove the command parameter
     command: -X
 
@@ -62,4 +64,4 @@ services:
       - MAIL_AUTH=
 
     volumes:
-      - ./data/daloradius:/data
+      - ./data/daloradius:/data/daloradius
